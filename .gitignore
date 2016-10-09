@@ -8,3 +8,6 @@ espfs/espfstest/espfstest
 *.DS_Store
 html_compressed/
 libwebpages-espfs.a
+.kdev4
+*.kdev4
+*.kate-swp

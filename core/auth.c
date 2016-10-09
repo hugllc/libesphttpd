@@ -15,6 +15,7 @@ HTTP auth implementation. Only does basic authentication for now.
 #include <esp8266.h>
 #include "auth.h"
 #include "base64.h"
+#include "md5.h"
 
 int ICACHE_FLASH_ATTR authBasic(HttpdConnData *connData) {
 	const char *forbidden="401 Forbidden.";
@@ -59,3 +60,72 @@ int ICACHE_FLASH_ATTR authBasic(HttpdConnData *connData) {
 	return HTTPD_CGI_DONE;
 }
 
+void ICACHE_FLASH_ATTR authDigestPasswordMD5(unsigned char *md5, char *username, char *passwd) {
+    MD5_CTX ctx;
+    char hdr[(AUTH_MAX_USER_LEN+AUTH_MAX_PASS_LEN+2)*10];
+    int len;
+    MD5_Init(&ctx);
+    len = os_sprintf(hdr, "%s:"HTTP_AUTH_REALM":%s", username, passwd);
+    MD5_Update(&ctx, hdr, len);
+    MD5_Final(md5, &ctx);
+}
+
+void ICACHE_FLASH_ATTR authDigestGenerateNonce(unsigned char *nonce) {
+    MD5_CTX ctx;
+    unsigned long rnd;
+    MD5_Init(&ctx);
+    rnd = os_random();
+    MD5_Update(&ctx, (unsigned char *)&rnd, sizeof(unsigned long));
+    rnd = system_get_rtc_time();
+    MD5_Update(&ctx, (unsigned char *)&rnd, sizeof(unsigned long));
+    rnd = os_random();
+    MD5_Update(&ctx, (unsigned char *)&rnd, sizeof(unsigned long));
+    
+    MD5_Final(nonce, &ctx);
+}
+
+int ICACHE_FLASH_ATTR authDigest(HttpdConnData *connData) {
+    const char *forbidden="401 Forbidden.";
+    int no=0;
+    int r;
+    char hdr[(AUTH_MAX_USER_LEN+AUTH_MAX_PASS_LEN+2)*10];
+    char userpass[AUTH_MAX_USER_LEN+AUTH_MAX_PASS_LEN+2];
+    unsigned char nonce[33]'
+    char user[AUTH_MAX_USER_LEN];
+    char pass[AUTH_MAX_PASS_LEN];
+    if (connData->conn==NULL) {
+        //Connection aborted. Clean up.
+        return HTTPD_CGI_DONE;
+    }
+    
+    r=httpdGetHeader(connData, "Authorization", hdr, sizeof(hdr));
+    if (r && strncmp(hdr, "Digest", 5)==0) {
+        r=base64_decode(strlen(hdr)-6, hdr+6, sizeof(userpass), (unsigned char *)userpass);
+        if (r<0) r=0; //just clean out string on decode error
+        userpass[r]=0; //zero-terminate user:pass string
+        //      printf("Auth: %s\n", userpass);
+        while (((AuthGetUserPw)(connData->cgiArg))(connData, no,
+            user, AUTH_MAX_USER_LEN, pass, AUTH_MAX_PASS_LEN)) {
+            //Check user/pass against auth header
+            if (strlen(userpass)==strlen(user)+strlen(pass)+1 &&
+                strncmp(userpass, user, strlen(user))==0 &&
+                userpass[strlen(user)]==':' &&
+                strcmp(userpass+strlen(user)+1, pass)==0) {
+                //Authenticated. Yay!
+                return HTTPD_CGI_AUTHENTICATED;
+                }
+                no++; //Not authenticated with this user/pass. Check next user/pass combo.
+            }
+    }
+    
+    authDigestGenerateNonce(nonce);
+    //Not authenticated. Go bug user with login screen.
+    httpdStartResponse(connData, 401);
+    httpdHeader(connData, "Content-Type", "text/plain");
+    os_printf(hdr, "Digest realm=\""HTTP_AUTH_REALM"\",qop=\"auth\",nonce=\"%s\",opaque=\"%s\"", (char *)nonce, "");
+    httpdHeader(connData, "WWW-Authenticate", hdr);
+    httpdEndHeaders(connData);
+    httpdSend(connData, forbidden, -1);
+    //Okay, all done.
+    return HTTPD_CGI_DONE;
+}

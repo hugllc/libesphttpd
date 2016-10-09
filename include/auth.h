@@ -17,6 +17,17 @@
 //has.
 typedef int (* AuthGetUserPw)(HttpdConnData *connData, int no, char *user, int userLen, char *pass, int passLen);
 
+typedef struct {
+    char nonce[33];
+    char opaque[33];
+    int counter;
+} authDigest_t;
+
+
 int ICACHE_FLASH_ATTR authBasic(HttpdConnData *connData);
+int ICACHE_FLASH_ATTR authDigest(HttpdConnData *connData);
+
+
+
 
 #endif
