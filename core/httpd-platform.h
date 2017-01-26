@@ -5,6 +5,7 @@ int httpdPlatSendData(ConnTypePtr conn, char *buff, int len);
 void httpdPlatDisconnect(ConnTypePtr conn);
 void httpdPlatDisableTimeout(ConnTypePtr conn);
 void httpdPlatInit(int port, int maxConnCt);
+void httpdPlatSSLInit(int port, int maxConnCt);
 void httpdPlatLock();
 void httpdPlatUnlock();
 

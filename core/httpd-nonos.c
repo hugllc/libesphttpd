@@ -44,7 +44,9 @@ static void ICACHE_FLASH_ATTR platRecvCb(void *arg, char *data, unsigned short l
 
 static void ICACHE_FLASH_ATTR platSentCb(void *arg) {
 	ConnTypePtr conn=arg;
+    os_printf("S\r\n");
 	httpdSentCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port);
+    os_printf("R\r\n");
 }
 
 static void ICACHE_FLASH_ATTR platConnCb(void *arg) {
@@ -80,12 +82,16 @@ static void ICACHE_FLASH_ATTR platRecvSSLCb(void *arg, char *data, unsigned shor
 
 static void ICACHE_FLASH_ATTR platSentSSLCb(void *arg) {
     ConnTypePtr conn=arg;
+    os_printf("Q\r\n");
     httpdSentCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port);
+    os_printf("N\r\n");
 }
 
 static void ICACHE_FLASH_ATTR platConnSSLCb(void *arg) {
     ConnTypePtr conn=arg;
+    os_printf("A\r\n");
     if (httpdConnectCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port)) {
+    os_printf("B\r\n");
         espconn_regist_recvcb(conn, platRecvSSLCb);
         espconn_regist_reconcb(conn, platReconSSLCb);
         espconn_regist_disconcb(conn, platDisconSSLCb);
@@ -100,14 +106,17 @@ int ICACHE_FLASH_ATTR httpdPlatSendData(ConnTypePtr conn, char *buff, int len) {
 	int r;
     if (conn == &httpdSSLConn) {
         r=espconn_secure_send(conn, (uint8_t*)buff, len);
+    os_printf("C: %d (%d)\r\n", len, r);
     } else {
         r=espconn_sent(conn, (uint8_t*)buff, len);
+    os_printf("E: %d (%d)\r\n", len, r);
     }
     return (r>=0);
 }
 
 void ICACHE_FLASH_ATTR httpdPlatDisconnect(ConnTypePtr conn) {
     if (conn == &httpdSSLConn) {
+    os_printf("D\r\n");
         espconn_secure_disconnect(conn);
     } else {
         espconn_disconnect(conn);
@@ -136,7 +145,7 @@ void ICACHE_FLASH_ATTR httpdPlatSSLInit(int port, int maxConnCt) {
     httpdSSLConn.state=ESPCONN_NONE;
     httpdSSLTcp.local_port=port;
     httpdSSLConn.proto.tcp=&httpdSSLTcp;
-    espconn_regist_connectcb(&httpdSSLConn, platConnCb);
+    espconn_regist_connectcb(&httpdSSLConn, platConnSSLCb);
     //espconn_secure_set_default_certificate(default_certificate, default_certificate_len);
     //espconn_secure_set_default_private_key(default_private_key, default_private_key_len);
     espconn_secure_accept(&httpdSSLConn);

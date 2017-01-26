@@ -83,7 +83,7 @@ int ICACHE_FLASH_ATTR cgiEspFsHook(HttpdConnData *connData) {
 	}
 
 	len=espFsRead(file, buff, 1024);
-	if (len>0) httpdSend(connData, buff, len);
+ 	if (len>0) httpdSend(connData, buff, len);
 	if (len!=1024) {
 		//We're done.
 		espFsClose(file);

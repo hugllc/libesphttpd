@@ -402,16 +402,19 @@ void ICACHE_FLASH_ATTR httpdFlushSendBuffer(HttpdConnData *conn) {
 	}
 	if (conn->priv->sendBuffLen!=0) {
 		r=httpdPlatSendData(conn->conn, conn->priv->sendBuff, conn->priv->sendBuffLen);
+        os_printf("H: %d\r\n", r);
 		if (!r) {
 			//Can't send this for some reason. Dump packet in backlog, we can send it later.
 			if (conn->priv->sendBacklogSize+conn->priv->sendBuffLen>HTTPD_MAX_BACKLOG_SIZE) {
 				httpd_printf("Httpd: Backlog: Exceeded max backlog size, dropped %d bytes instead of sending them.\n", conn->priv->sendBuffLen);
 				conn->priv->sendBuffLen=0;
+                os_printf("I\r\n");
 				return;
 			}
 			HttpSendBacklogItem *i=malloc(sizeof(HttpSendBacklogItem)+conn->priv->sendBuffLen);
 			if (i==NULL) {
 				httpd_printf("Httpd: Backlog: malloc failed, out of memory!\n");
+                os_printf("J\r\n");
 				return;
 			}
 			memcpy(i->data, conn->priv->sendBuff, conn->priv->sendBuffLen);
@@ -454,6 +457,7 @@ void ICACHE_FLASH_ATTR httpdCgiIsDone(HttpdConnData *conn) {
 //sent.
 void ICACHE_FLASH_ATTR httpdSentCb(ConnTypePtr rconn, char *remIp, int remPort) {
 	HttpdConnData *conn=httpdFindConnData(rconn, remIp, remPort);
+    os_printf("P\r\n");
 	httpdContinue(conn);
 }
 
@@ -464,13 +468,14 @@ void ICACHE_FLASH_ATTR httpdContinue(HttpdConnData * conn) {
 	httpdPlatLock();
 
 	char *sendBuff;
-
+os_printf("O\r\n");
 	if (conn==NULL) return;
-
+os_printf("L\r\n");
 	if (conn->priv->sendBacklog!=NULL) {
 		//We have some backlog to send first.
 		HttpSendBacklogItem *next=conn->priv->sendBacklog->next;
-		httpdPlatSendData(conn->conn, conn->priv->sendBacklog->data, conn->priv->sendBacklog->len);
+		r=httpdPlatSendData(conn->conn, conn->priv->sendBacklog->data, conn->priv->sendBacklog->len);
+        os_printf("G: %d\r\n", r);
 		conn->priv->sendBacklogSize-=conn->priv->sendBacklog->len;
 		free(conn->priv->sendBacklog);
 		conn->priv->sendBacklog=next;
@@ -849,7 +854,7 @@ int ICACHE_FLASH_ATTR httpdConnectCb(ConnTypePtr conn, char *remIp, int remPort)
 }
 
 //Httpd initialization routine. Call this to kick off webserver functionality.
-void ICACHE_FLASH_ATTR httpdInit(HttpdBuiltInUrl *fixedUrls, int port) {
+void ICACHE_FLASH_ATTR httpdInit(HttpdBuiltInUrl *fixedUrls, int port, int sslport) {
 	int i;
 
 	for (i=0; i<HTTPD_MAX_CONNECTIONS; i++) {
@@ -857,6 +862,11 @@ void ICACHE_FLASH_ATTR httpdInit(HttpdBuiltInUrl *fixedUrls, int port) {
 	}
 	builtInUrls=fixedUrls;
 
-	httpdPlatInit(port, HTTPD_MAX_CONNECTIONS);
+    if (port > 0) {
+        httpdPlatInit(port, HTTPD_MAX_CONNECTIONS);
+    }
+    if (sslport > 0) {
+        httpdPlatSSLInit(sslport, HTTPD_MAX_CONNECTIONS);
+    }
 	httpd_printf("Httpd init\n");
 }
