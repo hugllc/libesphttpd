@@ -65,31 +65,31 @@ static void ICACHE_FLASH_ATTR platReconSSLCb(void *arg, sint8 err) {
     
     ConnTypePtr conn=arg;
     //Just call disconnect to clean up pool and close connection.
-    httpdDisconSSLCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port);
+    httpdDisconCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port);
 }
 
 static void ICACHE_FLASH_ATTR platDisconSSLCb(void *arg) {
     ConnTypePtr conn=arg;
-    httpdDisconSSLCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port);
+    httpdDisconCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port);
 }
 
 static void ICACHE_FLASH_ATTR platRecvSSLCb(void *arg, char *data, unsigned short len) {
     ConnTypePtr conn=arg;
-    httpdRecvSSLCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port, data, len);
+    httpdRecvCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port, data, len);
 }
 
 static void ICACHE_FLASH_ATTR platSentSSLCb(void *arg) {
     ConnTypePtr conn=arg;
-    httpdSentSSLCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port);
+    httpdSentCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port);
 }
 
 static void ICACHE_FLASH_ATTR platConnSSLCb(void *arg) {
     ConnTypePtr conn=arg;
-    if (httpdConnectSSLCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port)) {
-        espconn_regist_recvcb(conn, platRecvCb);
-        espconn_regist_reconcb(conn, platReconCb);
-        espconn_regist_disconcb(conn, platDisconCb);
-        espconn_regist_sentcb(conn, platSentCb);
+    if (httpdConnectCb(conn, (char*)conn->proto.tcp->remote_ip, conn->proto.tcp->remote_port)) {
+        espconn_regist_recvcb(conn, platRecvSSLCb);
+        espconn_regist_reconcb(conn, platReconSSLCb);
+        espconn_regist_disconcb(conn, platDisconSSLCb);
+        espconn_regist_sentcb(conn, platSentSSLCb);
     } else {
         espconn_secure_disconnect(conn);
     }
